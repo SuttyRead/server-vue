@@ -1,14 +1,12 @@
 package com.ua.sutty.servervue.controller;
 
-import com.ua.sutty.servervue.form.UserForm;
 import com.ua.sutty.servervue.model.User;
 import com.ua.sutty.servervue.repository.UserRepository;
-import com.ua.sutty.servervue.validator.MatchPasswordValidator;
+import com.ua.sutty.servervue.validator.EmailValidator;
+import com.ua.sutty.servervue.validator.UsernameValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,19 +18,23 @@ public class UserController {
 
     private final UserRepository userRepository;
 
-    private final PasswordEncoder passwordEncoder;
+    private final EmailValidator emailValidator;
+
+    private final UsernameValidator usernameValidator;
 
     @Autowired
-    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserController(UserRepository userRepository, EmailValidator emailValidator,
+                          UsernameValidator usernameValidator) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.emailValidator = emailValidator;
+        this.usernameValidator = usernameValidator;
     }
 
-//    @InitBinder("userForm")
-//    public void initBinder(WebDataBinder binder) {
-//        binder.addValidators(matchPasswordValidator);
-//    }
-
+    @InitBinder
+    public void addBinder(WebDataBinder binder) {
+        binder.addValidators(emailValidator);
+        binder.addValidators(usernameValidator);
+    }
 
     @GetMapping("/users")
     public ResponseEntity<List<User>> getAllUsers() {
@@ -46,7 +48,7 @@ public class UserController {
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<User> getCustomer(@PathVariable("id") Long id) {
+    public ResponseEntity<User> getUser(@PathVariable("id") Long id) {
         if (id == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
@@ -61,39 +63,16 @@ public class UserController {
     }
 
     @PostMapping("/users")
-    public ResponseEntity<User> saveCustomer(@RequestBody @Valid UserForm userForm, BindingResult bindingResult) {
-        if (userForm == null) {
+    public ResponseEntity<User> saveUser(@RequestBody @Valid User user) {
+        if (user == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        System.out.println(bindingResult);
-        if (bindingResult.hasErrors()){
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-        User user = userForm.toUser();
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        System.out.println(user);
         this.userRepository.save(user);
         return new ResponseEntity<>(user, HttpStatus.CREATED);
     }
 
-    @PutMapping("/users/{id}")
-    public ResponseEntity<User> updateCustomer(@RequestBody User user, @PathVariable Long id) {
-        if (user == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-
-        User userInBase = this.userRepository.findUserById(id);
-        if (!passwordEncoder.matches(userInBase.getPassword(), user.getPassword())) {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-        }
-
-        this.userRepository.save(user);
-
-        return new ResponseEntity<>(user, HttpStatus.OK);
-    }
-
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<User> deleteCustomer(@PathVariable("id") Long id) {
+    public ResponseEntity<User> deleteUser(@PathVariable("id") Long id) {
         User user = this.userRepository.findUserById(id);
 
         if (user == null) {
